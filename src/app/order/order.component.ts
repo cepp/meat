@@ -1,7 +1,10 @@
 import {Component, OnInit} from '@angular/core';
+import {Router} from '@angular/router';
+import {FormGroup, FormBuilder, Validators} from '@angular/forms';
 import {RadioOption} from '../shared/radio/radio-option';
 import {OrderService} from './order.service';
 import {CartItem} from '../restaurant-detail/shopping-cart/cart-item.model';
+import {Order, OrderItem} from './order.model';
 
 @Component({
   selector: 'mt-order',
@@ -9,15 +12,33 @@ import {CartItem} from '../restaurant-detail/shopping-cart/cart-item.model';
 })
 export class OrderComponent implements OnInit {
 
+  orderForm: FormGroup;
+
+  delivery: number = 8;
+  
+  numberPattern = /^[0-9]*$/;
+  emailPattern = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
+
   paymentOptions: RadioOption[] = [
     {label: 'Dinheiro', value: 'MON'},
     {label: 'Cartão de Débito', value: 'DEB'},
     {label: 'Cartão de Refeição', value: 'REF'}
   ];
 
-  constructor(private orderService: OrderService) {}
+  constructor(private orderService: OrderService,
+    private router: Router,
+    private formBuilder: FormBuilder) {}
 
   ngOnInit() {
+    this.orderForm = this.formBuilder.group({
+      name: this.formBuilder.control('', [Validators.required, Validators.minLength(5)]),
+      email: this.formBuilder.control('', [Validators.required, Validators.pattern(this.emailPattern)]),
+      emailConfirmation: this.formBuilder.control('', [Validators.required, Validators.pattern(this.emailPattern)]),
+      address: this.formBuilder.control('', [Validators.required, Validators.minLength(5)]),
+      number: this.formBuilder.control('', [Validators.required, Validators.pattern(this.numberPattern)]),
+      optionalAddress: this.formBuilder.control(''),
+      paymentOption: this.formBuilder.control('', [Validators.required])
+    });
   }
 
   cartItems(): CartItem[] {
@@ -34,5 +55,18 @@ export class OrderComponent implements OnInit {
 
   remove(item: CartItem) {
     this.orderService.remove(item);
+  }
+
+  itemsValue(): number {
+    return this.orderService.itemsValue();
+  }
+
+  checkOrder(order: Order) {
+    order.orderItems = this.cartItems().map((item: CartItem) => new OrderItem(item.quantity, item.menuItem.id));
+    this.orderService.checkOrder(order).subscribe((orderId: string) => {
+      this.router.navigate(['/order-summary']);
+      console.log(`Compra conclu�da: ${orderId}`);
+      this.orderService.clear();
+    });
   }
 }
